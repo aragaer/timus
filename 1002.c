@@ -10,7 +10,14 @@ struct word {
     int len;
     char word[MAX_WORD_LEN + 1];
     char code[MAX_WORD_LEN + 1];
-} words[MAX_WORD_COUNT + 1];
+    struct word *next;
+};
+
+struct word words[MAX_WORD_COUNT + 1];
+
+struct dict_s {
+    struct word *head, *tail;
+} dict[10];
 
 char *solution[200];
 
@@ -25,35 +32,48 @@ void encode(struct word *word) {
     *c = '\0';
 }
 
+#ifndef ONLINE_JUDGE
+void print_dict(char num) {
+    struct dict_s *d = dict + num - '0';
+    struct word *w;
+    printf("Dictionary %c contains words:\n", num);
+    for (w = d->head; w; w = w->next)
+        printf("%s (%s)\n", w->word, w->code);
+}
+#endif
+
 #define NO_BEST 999
 
 int try_solve(char *num, int limit) {
-    struct word *last = words;
     int res = 0;
+    struct dict_s *d = dict + num[0] - '0';
+    struct word *w;
+
 #ifndef ONLINE_JUDGE
     printf("%s(%s, %d)\n", __func__, num, limit);
+    print_dict(num[0]);
 #endif
-    while (1) {
-        while (strncmp(num, last->code, last->len))
-            last++;
-        if (!last->len)
+
+    for (w = d->head; w; w = w->next) {
+        while (w && strncmp(num, w->code, w->len))
+            w = w->next;
+
+        if (!w)
             return limit + 1;
         
 #ifndef ONLINE_JUDGE
-        printf("word %s matches!\n", last->word);
+        printf("word %s matches!\n", w->word);
 #endif
-        if (num[last->len] == '\0') {
+        if (num[w->len] == '\0') {
 #ifndef ONLINE_JUDGE
-            printf("word %s is a win!!\n", last->word);
+            printf("word %s is a win!!\n", w->word);
 #endif
-            solution[0] = last->word;
+            solution[0] = w->word;
             return 1;
         }
-        if (limit == 1) {
-            last++;
+        if (limit == 1)
             continue;
-        }
-        res = try_solve(num + last->len, limit - 1);
+        res = try_solve(num + w->len, limit - 1);
 #ifndef ONLINE_JUDGE
         printf("We've got solution of %s in %d words\n", num, res == limit ? NO_BEST : res);
 #endif
@@ -61,19 +81,23 @@ int try_solve(char *num, int limit) {
 #ifndef ONLINE_JUDGE
             printf("we've got a better solution!\n");
 #endif
-            solution[res] = last->word;
+            solution[res] = w->word;
             limit = res;
         }
-        last++;
     }
+
+    return limit + 1;
 }
 
 int main() {
     int dict_size, i;
+    char tmp[MAX_WORD_LEN + 1];
     for (i = 'a'; i <= 'z'; i++)
         num_from_letter[i] = nl_code[i - 'a'];
     while (1) {
         scanf("%s", number);
+        for (i = 0; i < 10; i++)
+            dict[i].head = dict[i].tail = NULL;
 #ifndef ONLINE_JUDGE
         printf("\nNow playing with number %s\n", number);
 #endif
@@ -82,15 +106,30 @@ int main() {
 
         scanf("%d", &dict_size);
         for (i = 0; i < dict_size; i++) {
-            scanf("%s", words[i].word);
-            words[i].len = strlen(words[i].word);
-            encode(words + i);
+            struct dict_s *d;
+            struct word *w;
+
+            scanf("%s", tmp);
+            d = dict + num_from_letter[tmp[0]] - '0';
+            w = words + i;
+            if (d->tail)
+                d->tail->next = w;
+            else
+                d->head = w;
+            d->tail = w;
+            w->len = strlen(tmp);
+            memcpy(w->word, tmp, w->len + 1);
+            encode(w);
 #ifndef ONLINE_JUDGE
-            printf("Got word %s code %s\n", words[i].word, words[i].code);
+            printf("Got word %s code %s\n", w->word, w->code);
 #endif
         }
-        words[i].len = 0;
-        words[i].code[0] = '\0';
+        for (i = 0; i < 10; i++) {
+            struct word *w = dict[i].tail;
+            if (!w)
+                continue;
+            w->next = NULL;
+        }
         i = try_solve(number, NO_BEST);
         if (i >= NO_BEST)
             printf("No solution.\n");
@@ -99,3 +138,4 @@ int main() {
                 printf("%s%c", solution[i], i ? ' ' : '\n');
     }
 }
+
