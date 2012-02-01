@@ -5,28 +5,27 @@
 #define ONLINE_JUDGE
 #define MAX_WORD_COUNT  50000
 #define MAX_WORD_LEN    50
+#define MAX_CHARS 300*1024
+#define NUMLEN 100
 
-char words[MAX_WORD_COUNT][MAX_WORD_LEN];
+char words[MAX_CHARS];
 
 int pool_used;
 struct node_s {
-#ifndef ONLINE_JUDGE
-    char name[MAX_WORD_LEN];
-#endif
     struct node_s *children[10];
     char *word;
-} pool[MAX_WORD_COUNT*MAX_WORD_LEN], root;
+} pool[MAX_CHARS], root;
 
 char num_from_letter[256], nl_code[] = "22233344115566070778889990";
 
-char number[101];
+char number[NUMLEN+1];
 struct solution {
     int len;
     char *word;
     struct solution *next;
-} known_solutions[101];
+} known_solutions[NUMLEN];
 
-#define NO_BEST 101
+#define NO_BEST NUMLEN + 1
 
 #ifndef ONLINE_JUDGE
 #define debug(...) printf(__VA_ARGS__)
@@ -60,19 +59,17 @@ static __inline struct node_s *new_node(void) {
 }
 
 struct solution *solve_from_position(int pos) {
-    char *num = number + pos;
     struct node_s *ptr = &root;
     struct solution *s = known_solutions + pos, *f;
+    int n;
 #ifndef ONLINE_JUDGE
-    int i;
-    printf("%s(%d) = %s\n", __func__, pos, num);
+    printf("%s(%d) = %s\n", __func__, pos, number + pos);
 #endif
-    if (s->len)
+    if (s->len) // solved already
         return s;
 
     s->len = NO_BEST;
     for (; number[pos]; pos++) { // number goes on
-        int n = number[pos] - '0';
         if (ptr->word) { // we can end the word here, let's see what happens
             debug("accept word '%s' and continue\n", ptr->word);
             f = solve_from_position(pos);
@@ -83,11 +80,8 @@ struct solution *solve_from_position(int pos) {
                 s->next = f;
             }
         }
-#ifndef ONLINE_JUDGE
-        for (i = 0; i < 10; i++)
-            if (ptr->children[i])
-                printf("can pick code %d\n", i);
-#endif
+
+        n = number[pos] - '0';
 
         // keep going on a longer word
         if (ptr->children[n]) // alright!
@@ -96,7 +90,6 @@ struct solution *solve_from_position(int pos) {
             return s;
         debug("acceptable code %d in position %d\n", n, pos);
     }
-    debug("word ended\n");
 
 // that's the end of the number
 
@@ -111,12 +104,10 @@ struct solution *solve_from_position(int pos) {
 
 int main() {
     int dict_size, i;
-    char tmp[MAX_WORD_LEN + 1];
     for (i = 'a'; i <= 'z'; i++)
         num_from_letter[i] = nl_code[i - 'a'];
     while (1) {
-        int l;
-        char letter, *word, *wptr;
+        char *word, *wptr;
         struct solution *s;
         scanf("%s", number);
         if (number[0] == '-')
@@ -125,21 +116,18 @@ int main() {
 #ifndef ONLINE_JUDGE
         printf("Number %s\n", number);
 #endif
-        l = strlen(number);
-
         for (i = 0; i < 10; i++)
             root.children[i] = NULL;
-        for (i = 0; i < 101; i++)
+        for (i = 0; i < NUMLEN; i++)
             known_solutions[i].len = 0;
         pool_used = 0;
+        wptr = words;
 
         (void) scanf("%d", &dict_size);
-        (void) scanf("%c", &letter); // newline after number
-        if (letter == '\r')
-            (void) scanf("%c", &letter);
+        (void) scanf("\n\r"); // newline after number
         for (i = 0; i < dict_size; i++) {
             struct node_s *ptr = &root;
-            for (wptr = word = words[i]; ; wptr++) {
+            for (word = wptr; ; wptr++) {
                 int n;
                 (void) scanf("%c", wptr);
                 if (*wptr == '\r')
@@ -149,6 +137,7 @@ int main() {
                     *wptr = '\0';
                     if (ptr->word == NULL)
                         ptr->word = word;
+                    wptr++;
                     break;
                 }
 
@@ -162,6 +151,7 @@ int main() {
 #ifndef ONLINE_JUDGE
         print_tree(&root, 0);
         printf("used up %d nodes\n", pool_used);
+        printf("used up %d bytes of words storage\n", wptr - words);
 #endif
         solve_from_position(0);
         if (known_solutions->len == NO_BEST)
